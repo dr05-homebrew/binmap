@@ -38,7 +38,7 @@ visualization_drag_start_map = None
 visualization_drag_start_screen = None
 
 infile = np.memmap(sys.argv[1], dtype=np.uint8, mode='r')
-infile = np.unpackbits(infile) * 255
+sourcebits = np.unpackbits(infile) * 255
 
 im_scrollbar = None
 im_scrollbar_display = None
@@ -59,7 +59,7 @@ def redraw_scrollbar():
 	height = scrollbarheight
 
 	if im_scrollbar is None:
-		im_scrollbar = np.pad(infile, (0, -len(infile) % scrollbarwidth), 'constant').reshape((-1, scrollbarwidth))
+		im_scrollbar = np.pad(sourcebits, (0, -len(sourcebits) % scrollbarwidth), 'constant').reshape((-1, scrollbarwidth))
 		im_scrollbar_display = None
 
 	if im_scrollbar_display is None:
@@ -72,8 +72,8 @@ def redraw_scrollbar():
 
 	cv2.rectangle(
 		canvas,
-		(0,              int(selection_start / len(infile) * scrollbarheight)),
-		(scrollbarwidth, int((selection_start + w*h) / len(infile) * scrollbarheight)),
+		(0,              int(selection_start / len(sourcebits) * scrollbarheight)),
+		(scrollbarwidth, int((selection_start + w*h) / len(sourcebits) * scrollbarheight)),
 		(255, 255, 255))
 
 	print_status()
@@ -88,7 +88,7 @@ def redraw_visualization():
 	start = selection_start
 	stop  = selection_start + w*h
 
-	pixels = infile[start:stop].reshape((h, w))
+	pixels = sourcebits[start:stop].reshape((h, w))
 
 	canvas = cv2.resize(
 		pixels,
@@ -104,8 +104,8 @@ def redraw():
 
 	if selection_start < 0:
 		selection_start = 0
-	elif selection_start + w*h >= len(infile):
-		selection_start = len(infile) - w*h
+	elif selection_start + w*h >= len(sourcebits):
+		selection_start = len(sourcebits) - w*h
 
 	redraw_scrollbar()
 	redraw_visualization()
@@ -120,27 +120,25 @@ def on_scrollbar_scroll(event, x, y, flags, param):
 	else:
 		selection_height /= 1+k
 
-	redraw_scrollbar()
-	redraw_visualization()
+	redraw()
 
 def on_scrollbar_down(event, x, y, flags, param):
 	global scrollbar_drag_start_origin, scrollbar_drag_start_screen
-	scrollbar_drag_start_screen = y / scrollbarheight * len(infile)
+	scrollbar_drag_start_screen = y / scrollbarheight * len(sourcebits)
 	scrollbar_drag_start_origin = selection_start
 
 def on_scrollbar_drag(event, x, y, flags, param):
 	w = int(selection_width)
 	h = int(selection_height)
 
-	scrollbar_drag_now_screen = y / scrollbarheight * len(infile)
+	scrollbar_drag_now_screen = y / scrollbarheight * len(sourcebits)
 	delta = scrollbar_drag_now_screen - scrollbar_drag_start_screen
 	global selection_start
 
 	selection_start = scrollbar_drag_start_origin
-	selection_start += int(round_down(delta * w*h*64.0/len(infile), w))
+	selection_start += int(round_down(delta * w*h*64.0/len(sourcebits), w))
 
-	redraw_scrollbar()
-	redraw_visualization()
+	redraw()
 
 def on_scrollbar_up(event, x, y, flags, param):
 	global scrollbar_drag_start_origin, scrollbar_drag_start_screen
@@ -179,8 +177,7 @@ def on_visualization_drag(event, x, y, flags, param):
 	global selection_start
 	selection_start = int(offset_bits)
 
-	redraw_scrollbar()
-	redraw_visualization()
+	redraw()
 
 def on_visualization_up(event, x, y, flags, param):
 	global visualization_drag_start_map, visualization_drag_start_screen
@@ -214,20 +211,53 @@ def scrollbar_callback(event, x, y, flags, param):
 	elif event == 4: # mouse up
 		on_scrollbar_up(event, x, y, flags, param)
 
+def hexdump(at, bytes):
+	def charfunc(code):
+		if code is None:
+			return ' '
+		elif 32 <= code < 128:
+			return chr(code)
+		else:
+			return '.'
+
+	for i in xrange(0, len(bytes), 16):
+		row = bytes[i:i+16]
+		print "{:8x} : {} : {}".format(
+			at + i,
+			' '.join(
+				"{:02X}".format(row[j]) if j < len(row) else '  '
+				for j in xrange(16)
+			),
+			''.join(
+				charfunc(row[j] if j < len(row) else None)
+				for j in xrange(16)
+			),
+		)
+
 def process_key(keycode):
+	global keybuffer
 	global selection_start
 	global selection_width
 
 	w = int(selection_width)
 	h = int(selection_height)
 
-	if keycode == ord('-'):
+	if keycode == 0x08:
+		keybuffer = keybuffer[:-1]
+		sys.stdout.write('\b \b')
+
+	elif keycode == 0x0D:
+		print
+		process_command(keybuffer)
+		keybuffer = ""
+
+	elif keycode == ord('-'):
 		selection_width -= 1
 
 	elif keycode in [ord('='), ord('+')]:
 		selection_width += 1
 
-	if keycode == VK_PGUP:
+	elif keycode == VK_PGUP:
 		selection_start -= w*h
 
 	elif keycode == VK_PGDN:
@@ -245,6 +275,9 @@ def process_key(keycode):
 	elif keycode == VK_DOWN:
 		selection_start += w
 
+	elif keycode == 4: # ctrl-d
+		hexdump(selection_start // 8, np.packbits(sourcebits[selection_start:selection_start+w*h]))
+
 	else:
 		print "keycode", keycode
 
@@ -253,7 +286,7 @@ def process_key(keycode):
 def process_command(cmd):
 	if cmd.startswith('g'):
 		global selection_start
-		offset = int(cmd[1:], 0)
+		offset = int(cmd[1:], 16)
 		selection_start = offset * 8
 
 	elif cmd.startswith('w'):
@@ -281,8 +314,7 @@ cv2.namedWindow("scrollbar", cv2.WINDOW_NORMAL)
 cv2.setMouseCallback("visualization", visualization_callback)
 cv2.setMouseCallback("scrollbar", scrollbar_callback)
 
-redraw_visualization()
-redraw_scrollbar()
+redraw()
 
 keybuffer = ""
 
@@ -302,21 +334,11 @@ while True:
 	elif key in (27,):
 		break
 
-	elif key > 0xff or chr(key) in '-=+':
+	elif not (0x20 <= key < 0x80) or chr(key) in '-=+':
 		process_key(key)
 
 	else:
-		if key == 0x08:
-			keybuffer = keybuffer[:-1]
-			sys.stdout.write('\b \b')
-		elif key == 0x0D:
-			print
-			process_command(keybuffer)
-			keybuffer = ""
-		else:
-			keybuffer += chr(key)
-			sys.stdout.write(chr(key))
-
-
+		keybuffer += chr(key)
+		sys.stdout.write(chr(key))
 
 cv2.destroyAllWindows()
