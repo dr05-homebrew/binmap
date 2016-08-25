@@ -68,16 +68,17 @@ def redraw_scrollbar():
 
 	canvas = im_scrollbar_display.copy()
 
+	canvas = cv2.cvtColor(src=canvas, code=cv2.COLOR_GRAY2BGR)
+	#print canvas.shape
+	#canvas[:,:,(0,2)] = 0
+
 	cv2.rectangle(
 		canvas,
 		(0,              int(selection_start / len(sourcebits) * scrollbarheight)),
 		(scrollbarwidth, int((selection_start + w*h) / len(sourcebits) * scrollbarheight)),
-		(255, 255, 255))
+		(0, 0, 255),
+		thickness=2)
 
-	print_status()
-	canvas= cv2.cvtColor(src=canvas, code=cv2.COLOR_GRAY2BGR)
-	#print canvas.shape
-	#canvas[:,:,(0,2)] = 0
 	cv2.imshow("scrollbar", canvas)
 
 	return im_scrollbar
