@@ -21,7 +21,7 @@ import numpy as np
 
 
 scrollbarwidth = 512
-scrollbarheight = 1024
+scrollbarheight = 768
 
 selection_start = 0 # bits
 selection_width = 128
@@ -77,7 +77,7 @@ def redraw_scrollbar():
 		(0,              int(selection_start / len(sourcebits) * scrollbarheight)),
 		(scrollbarwidth, int((selection_start + w*h) / len(sourcebits) * scrollbarheight)),
 		(0, 0, 255),
-		thickness=2)
+		thickness=1)
 
 	cv2.imshow("scrollbar", canvas)
 
