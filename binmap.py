@@ -28,8 +28,8 @@ selection_width = 128
 selection_height = 128
 # selected bits = w*h
 
-visualization_display_width = 1024
-visualization_display_height = 1024
+visualization_display_width = 512
+visualization_display_height = 2048
 
 scrollbar_drag_start_origin = None
 scrollbar_drag_start_screen = None
@@ -276,9 +276,9 @@ def print_status():
 	)
 
 cv2.namedWindow("visualization", cv2.WINDOW_NORMAL)
-cv2.setMouseCallback("visualization", visualization_callback)
+cv2.namedWindow("scrollbar", cv2.WINDOW_NORMAL)
 
-cv2.namedWindow("scrollbar")
+cv2.setMouseCallback("visualization", visualization_callback)
 cv2.setMouseCallback("scrollbar", scrollbar_callback)
 
 redraw_visualization()
