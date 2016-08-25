@@ -318,12 +318,32 @@ redraw()
 
 keybuffer = ""
 
-VK_PGUP = 2162688
-VK_PGDN = 2228224
-VK_UP    = 2490368
-VK_DOWN  = 2621440
-VK_LEFT  = 2424832
-VK_RIGHT = 2555904
+# [25.08. 22:10:29] <jn> keycode 65362
+# [25.08. 22:10:29] <jn> start: 0x   6e3c3 + 2 bits, 128.0 x 128.0 pixels
+# [25.08. 22:10:29] <jn> start: 0x   6e3c3 + 2 bits, 128.0 x 128.0 pixels
+# [25.08. 22:10:29] <jn> keycode 65363
+# [25.08. 22:10:29] <jn> start: 0x   6e3c3 + 2 bits, 128.0 x 128.0 pixels
+# [25.08. 22:10:31] <jn> start: 0x   6e3c3 + 2 bits, 128.0 x 128.0 pixels
+# [25.08. 22:10:34] <jn> keycode 65364
+# [25.08. 22:10:36] <jn> start: 0x   6e3c3 + 2 bits, 128.0 x 128.0 pixels
+# [25.08. 22:10:39] <jn> start: 0x   6e3c3 + 2 bits, 128.0 x 128.0 pixels
+# [25.08. 22:10:41] <jn> keycode 65361
+# [25.08. 22:10:42] <Cracki> hoch rechts unten links
+
+if os.name == 'nt':
+	VK_PGUP  = 2162688
+	VK_PGDN  = 2228224
+	VK_UP    = 2490368
+	VK_DOWN  = 2621440
+	VK_LEFT  = 2424832
+	VK_RIGHT = 2555904
+else:
+	VK_PGUP  = 2162688
+	VK_PGDN  = 2228224
+	VK_UP    = 65362
+	VK_DOWN  = 65364
+	VK_LEFT  = 65361
+	VK_RIGHT = 65363
 
 while True:
 	key = cv2.waitKey(500)
