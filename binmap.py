@@ -21,7 +21,7 @@ import numpy as np
 
 
 scrollbarwidth = 512
-scrollbarheight = 800
+scrollbarheight = 1024
 
 selection_start = 0 # bits
 selection_width = 128
@@ -56,8 +56,6 @@ def redraw_scrollbar():
 	w = int(selection_width)
 	h = int(selection_height)
 
-	height = scrollbarheight
-
 	if im_scrollbar is None:
 		im_scrollbar = np.pad(sourcebits, (0, -len(sourcebits) % scrollbarwidth), 'constant').reshape((-1, scrollbarwidth))
 		im_scrollbar_display = None
@@ -65,7 +63,7 @@ def redraw_scrollbar():
 	if im_scrollbar_display is None:
 		im_scrollbar_display = cv2.resize(
 			im_scrollbar,
-			dsize=(scrollbarwidth, height),
+			dsize=(scrollbarwidth, scrollbarheight),
 			interpolation=cv2.INTER_AREA)
 
 	canvas = im_scrollbar_display.copy()
@@ -77,6 +75,9 @@ def redraw_scrollbar():
 		(255, 255, 255))
 
 	print_status()
+	canvas= cv2.cvtColor(src=canvas, code=cv2.COLOR_GRAY2BGR)
+	#print canvas.shape
+	#canvas[:,:,(0,2)] = 0
 	cv2.imshow("scrollbar", canvas)
 
 	return im_scrollbar
@@ -198,6 +199,18 @@ def visualization_callback(event, x, y, flags, param):
 	elif event == 4: # mouse up
 		on_visualization_up(event, x, y, flags, param)
 
+def on_scrollbar_rightclick(event, x, y, flags, param):
+	global selection_start
+
+	w = int(selection_width)
+	h = int(selection_height)
+
+	center = y/scrollbarheight * len(sourcebits)
+	selection_start = center - 0.5 * w*h
+	selection_start = round(selection_start / selection_width) * selection_width
+
+	redraw()
+
 def scrollbar_callback(event, x, y, flags, param):
 	if event == 10: # scroll wheel
 		on_scrollbar_scroll(event, x, y, flags, param)
@@ -210,6 +223,13 @@ def scrollbar_callback(event, x, y, flags, param):
 
 	elif event == 4: # mouse up
 		on_scrollbar_up(event, x, y, flags, param)
+
+	elif event == 2: # right click
+		on_scrollbar_rightclick(event, x, y, flags, param)
+
+	elif event == 0 and flags == 2: # right drag
+		on_scrollbar_rightclick(event, x, y, flags, param)
+
 
 def hexdump(at, bytes):
 	def charfunc(code):
@@ -310,6 +330,8 @@ def print_status():
 
 cv2.namedWindow("visualization", cv2.WINDOW_NORMAL)
 cv2.namedWindow("scrollbar", cv2.WINDOW_NORMAL)
+
+#cv2.resizeWindow("scrollbar", int(scrollbarwidth), int(scrollbarheight))
 
 cv2.setMouseCallback("visualization", visualization_callback)
 cv2.setMouseCallback("scrollbar", scrollbar_callback)
