@@ -246,7 +246,7 @@ def process_key(keycode):
 		keybuffer = keybuffer[:-1]
 		sys.stdout.write('\b \b')
 
-	elif keycode == 0x0D:
+	elif keycode == 0x0D or keycode == 0x0A:
 		print
 		process_command(keybuffer)
 		keybuffer = ""
