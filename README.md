@@ -28,9 +28,13 @@ scroll to resize window.
 
 right click/drag to jump to pointer.
 
+![scrollbar](screenshots/scrollbar.png)
+
 ### bitmap
 
 left drag to shift up/down/left/right.
 
 scroll to change width.
+
+![bitmap](screenshots/visualization.png)
 
