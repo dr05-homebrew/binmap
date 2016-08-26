@@ -98,6 +98,12 @@ def redraw_visualization():
 		interpolation=cv2.INTER_AREA)
 	cv2.imshow("visualization", canvas)
 
+do_redraw = True
+
+def invalidate():
+	global do_redraw
+	do_redraw = True
+
 def redraw():
 	global selection_start
 
@@ -122,7 +128,7 @@ def on_scrollbar_scroll(event, x, y, flags, param):
 	else:
 		selection_height /= 1+k
 
-	redraw()
+	invalidate()
 
 def on_scrollbar_down(event, x, y, flags, param):
 	global scrollbar_drag_start_origin, scrollbar_drag_start_screen
@@ -138,9 +144,9 @@ def on_scrollbar_drag(event, x, y, flags, param):
 	global selection_start
 
 	selection_start = scrollbar_drag_start_origin
-	selection_start += int(round_down(delta * w*h*64.0/len(sourcebits), w))
+	selection_start += int(round_down(delta * w*h*32.0/len(sourcebits), w))
 
-	redraw()
+	invalidate()
 
 def on_scrollbar_up(event, x, y, flags, param):
 	global scrollbar_drag_start_origin, scrollbar_drag_start_screen
@@ -151,8 +157,7 @@ def on_visualization_scroll(event, x, y, flags, param):
 	global selection_width
 	direction = (flags > 0) - (flags < 0)
 	selection_width += direction
-	print_status()
-	redraw_visualization()
+	invalidate()
 
 def on_visualization_down(event, x, y, flags, param):
 	global visualization_drag_start_map
@@ -179,7 +184,7 @@ def on_visualization_drag(event, x, y, flags, param):
 	global selection_start
 	selection_start = int(offset_bits)
 
-	redraw()
+	invalidate()
 
 def on_visualization_up(event, x, y, flags, param):
 	global visualization_drag_start_map, visualization_drag_start_screen
@@ -210,7 +215,7 @@ def on_scrollbar_rightclick(event, x, y, flags, param):
 	selection_start = center - 0.5 * w*h
 	selection_start = round(selection_start / selection_width) * selection_width
 
-	redraw()
+	invalidate()
 
 def scrollbar_callback(event, x, y, flags, param):
 	if event == 10: # scroll wheel
@@ -231,8 +236,7 @@ def scrollbar_callback(event, x, y, flags, param):
 	elif event == 0 and flags == 2: # right drag
 		on_scrollbar_rightclick(event, x, y, flags, param)
 
-
-def hexdump(at, bytes):
+def hexdump(start, bytes, width=16):
 	def charfunc(code):
 		if code is None:
 			return ' '
@@ -241,17 +245,18 @@ def hexdump(at, bytes):
 		else:
 			return '.'
 
-	for i in xrange(0, len(bytes), 16):
-		row = bytes[i:i+16]
+	for i in range(0, len(bytes), width):
+		row = bytes[i:i+width]
+
 		print "{:8x} : {} : {}".format(
-			at + i,
+			start + i,
 			' '.join(
 				"{:02X}".format(row[j]) if j < len(row) else '  '
-				for j in xrange(16)
+				for j in xrange(width)
 			),
 			''.join(
 				charfunc(row[j] if j < len(row) else None)
-				for j in xrange(16)
+				for j in xrange(width)
 			),
 		)
 
@@ -297,12 +302,16 @@ def process_key(keycode):
 		selection_start += w
 
 	elif keycode == 4: # ctrl-d
-		hexdump(selection_start // 8, np.packbits(sourcebits[selection_start:selection_start+w*h]))
+		hexdump(
+			selection_start // 8,
+			np.packbits(sourcebits[selection_start:selection_start+w*h]),
+			width=round_up(w, 8) // 8
+		)
 
 	else:
 		print "keycode", keycode
 
-	redraw()
+	invalidate()
 
 def process_command(cmd):
 	if cmd.startswith('g'):
@@ -320,13 +329,15 @@ def process_command(cmd):
 		height = int(cmd[1:], 0)
 		selection_height = height
 
-	redraw()
+	invalidate()
 
 def print_status():
-	print "start: 0x{:8x} + {} bits, {:.1f} x {:.1f} pixels".format(
+	print "start: 0x{:8x} + {} bits, {:.1f} ({}+{}) x {:.1f} pixels (stride {} B)".format(
 		int(selection_start // 8),
 		selection_start % 8,
-		selection_width, selection_height,
+		selection_width, int(selection_width) // 8, int(selection_width) % 8,
+		selection_height,
+		int(selection_width)*int(selection_height) // 8,
 	)
 
 cv2.namedWindow("visualization", cv2.WINDOW_NORMAL)
@@ -336,8 +347,6 @@ cv2.namedWindow("scrollbar", cv2.WINDOW_NORMAL)
 
 cv2.setMouseCallback("visualization", visualization_callback)
 cv2.setMouseCallback("scrollbar", scrollbar_callback)
-
-redraw()
 
 keybuffer = ""
 
@@ -368,8 +377,14 @@ else:
 	VK_LEFT  = 65361
 	VK_RIGHT = 65363
 
+invalidate()
+
 while True:
-	key = cv2.waitKey(500)
+	if do_redraw:
+		redraw()
+		do_redraw = False
+
+	key = cv2.waitKey(20)
 
 	if key == -1:
 		continue
